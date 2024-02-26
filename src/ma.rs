@@ -6,7 +6,7 @@ use rand_distr::{Distribution, Normal};
 use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
 use crate::arma::mean;
-use crate::arma::{pacf, residuals};
+use crate::arma::residuals;
 
 #[derive(Debug, Clone)]
 pub struct MovingAverage {

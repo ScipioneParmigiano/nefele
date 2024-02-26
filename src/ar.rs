@@ -175,7 +175,7 @@ impl AutoRegressive {
 
         e[0] = r[0];
         for i in 1..=order {
-            let mut lambda = 0.0;
+            let lambda;
             let mut sum = 0.0;
             for j in 1..=i - 1 {
                 sum += a[j] * r[i - j];
