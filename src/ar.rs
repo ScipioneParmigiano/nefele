@@ -1,10 +1,16 @@
 use nalgebra::{DMatrix, DVector};
 use rand_distr::{Distribution, Normal};
+use finitediff::FiniteDiff;
+use liblbfgs::lbfgs;
+use crate::arma::mean;
+use crate::arma::{pacf, residuals};
+
+
 
 #[derive(Debug, Clone)]
 pub struct AutoRegressive {
     pub phi: Vec<f64>,
-    pub sigma_squared: f64,
+    sigma_squared: f64,
     aic:f64,
     bic:f64
 }
@@ -13,6 +19,7 @@ pub enum ARMethod {
     OLS,
     YWALKER,
     BURG,
+    CSS
 }
 
 pub enum ARCriterion {
@@ -21,7 +28,7 @@ pub enum ARCriterion {
 }
 
 impl AutoRegressive {
-
+    // create a new AR struct
     pub fn new() -> AutoRegressive {
         AutoRegressive {
             phi: vec![0.0; 1],
@@ -38,6 +45,7 @@ impl AutoRegressive {
         )
     }
 
+    // simulate an AR process
     pub fn simulate(
         &mut self,
         length: usize,
@@ -50,6 +58,7 @@ impl AutoRegressive {
 
         let ar_order = param.len();
 
+        // initialization
         let init = ar_order;
         for _ in 0..(init + length) {
             let mut rng = rand::thread_rng();
@@ -57,6 +66,7 @@ impl AutoRegressive {
             output.push(err);
         }
 
+        // AR(phi)
         if ar_order > 0 {
             let ar = &param;
 
@@ -75,6 +85,7 @@ impl AutoRegressive {
             ARMethod::OLS => Self::fit_ols(self, data, order),
             ARMethod::YWALKER => Self::fit_yule_walker(self, data, order),
             ARMethod::BURG => Self::fit_burg(self, data, order),
+            ARMethod::CSS => Self::fit_css(self, data, order)
         }
 
         self.sigma_squared = compute_variance(&data, &self.phi);
@@ -96,6 +107,7 @@ impl AutoRegressive {
             panic!("Not enough data for the given order");
         }
 
+        // Construct the matrix of regressors
         let mut x = DMatrix::zeros(n - order, order);
         for i in order..n {
             for j in 0..order {
@@ -105,9 +117,11 @@ impl AutoRegressive {
 
         let y = DVector::from_iterator(n - order, data.iter().skip(order).cloned());
 
+        // OLS
         let xtx = x.transpose() * &x;
         let xty = x.transpose() * &y;
 
+        // Cholesky decomposition
         let chol = xtx.cholesky().expect("Cholesky decomposition failed");
         let coefficients = chol.solve(&xty);
 
@@ -117,6 +131,7 @@ impl AutoRegressive {
     fn fit_yule_walker(&mut self, data: &Vec<f64>, order: usize) {
         let n = data.len();
 
+        // autocorrelation matrix rho
         let mut rho = DMatrix::<f64>::zeros(order, order);
 
         for i in 0..order {
@@ -145,7 +160,7 @@ impl AutoRegressive {
     }
 
     fn fit_burg(&mut self, data: &Vec<f64>, order: usize) {
-
+        // autocorrelation coefficients
         let mut r: Vec<f64> = vec![0.0; order + 1];
         for k in 0..=order {
             for i in k..data.len() {
@@ -154,6 +169,7 @@ impl AutoRegressive {
             r[k] /= (data.len() - k) as f64;
         }
 
+        // Burg algorithm to estimate AR parameters
         let mut e: Vec<f64> = vec![0.0; order + 1];
         let mut a: Vec<f64> = vec![0.0; order + 1];
 
@@ -177,8 +193,68 @@ impl AutoRegressive {
         self.phi = a[1..].to_vec();
     }
 
-    fn autofit_aic(&mut self, data: &Vec<f64>, max_order: usize) {
+    fn fit_css(&mut self, data: &Vec<f64>, ar: usize) {
 
+        let total_size = 1 + ar;
+
+        // The objective is to minimize the conditional sum of squares (CSS),
+        // i.e. the sum of the squared residuals
+        let f = |coef: &Vec<f64>| {
+            assert_eq!(coef.len(), total_size);
+
+            let intercept = coef[0];
+            let phi = &coef[1..ar + 1];
+            let theta = &coef[ar + 1..];
+
+            let residuals = residuals(&data, intercept, &phi.to_vec(), &theta.to_vec());
+
+            let mut css: f64 = 0.0;
+            for residual in &residuals {
+                css += residual * residual;
+            }
+            css
+        };
+        let g = |coef: &Vec<f64>| coef.forward_diff(&f);
+
+        // Initial coefficients
+        // Todo: These initial guesses are rather arbitrary.
+        let mut coef: Vec<f64> = Vec::new();
+
+        // Initial guess for the intercept: First value of data
+        coef.push(mean(&data));
+
+        // Initial guess for the AR coefficients: Values of the PACF
+        if ar > 0 {
+            let pacf = pacf(&data, Some(ar));
+            for p in pacf {
+                coef.push(p);
+            }
+        }
+
+        let evaluate = |x: &[f64], gx: &mut [f64]| {
+            let x = x.to_vec();
+            let fx = f(&x);
+            let gx_eval = g(&x);
+            // copy values from gx_eval into gx
+            gx[..gx_eval.len()].copy_from_slice(&gx_eval[..]);
+            Ok(fx)
+        };
+
+        let fmin = lbfgs().with_max_iterations(200);
+        if let Err(e) = fmin.minimize(
+            &mut coef, // input variables
+            evaluate,  // define how to evaluate function
+            |_prng| {
+                false 
+            },
+        ) {
+            tracing::warn!("{}", e);
+        }
+        
+        self.phi = coef[1..=ar].to_vec();
+    }
+
+    fn autofit_aic(&mut self, data: &Vec<f64>, max_order: usize) {
         let mut aic:Vec<f64> = Vec::with_capacity(max_order);
         for order in 1..(max_order+1){
             Self::fit(self, data, order, ARMethod::YWALKER);
@@ -189,9 +265,10 @@ impl AutoRegressive {
         .iter()
         .enumerate()
         .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index + 1) 
+        .map(|(index, _)| index + 1) // Adding 1 to get position
         .unwrap_or(0);
 
+        // println!("{:?}",min_order);
         Self::fit(self, data, min_order, ARMethod::YWALKER);
     }
 
@@ -206,39 +283,41 @@ impl AutoRegressive {
         .iter()
         .enumerate()
         .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index + 1) 
+        .map(|(index, _)| index + 1) // Adding 1 to get position
         .unwrap_or(0);
 
         Self::fit(self, data, min_order, ARMethod::YWALKER);
     }
-
+    
 }
 
-fn compute_variance(data: &Vec<f64>, coefficients: &Vec<f64>) -> f64 {
-    let n = coefficients.len();
+fn compute_variance(data: &[f64], coefficients: &[f64]) -> f64 {
     let mut errors: Vec<f64> = Vec::new();
 
-    for i in n..data.len() {
+    // errors for the AR(n) model
+    let n = 0; //coefficients.len();
+    for i in coefficients.len()..data.len() {
         let mut error = data[i];
-        for j in 0..n {
+        for j in 0..coefficients.len() {
             error -= coefficients[j] * data[i - j - 1];
         }
         errors.push(error);
     }
 
-    let variance: f64 = errors.iter().map(|&e| (e).powi(2)).sum::<f64>() / (errors.len()-coefficients.len()) as f64;
-
+    
+    let mean = errors.iter().sum::<f64>() / data.len() as f64;
+    let variance = errors.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (errors.len() - n) as f64;
     variance
 }
 
 fn compute_aic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
-    let k = p; 
+    let k = p; // Number of parameters (p autoregressive parameters)
     let aic = 2.0 * k as f64 + n as f64 * (residual_sum_of_squares / n as f64).ln();
     aic
 }
 
 fn compute_bic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
-    let k = p; 
+    let k = p; // Number of parameters (p autoregressive parameters)
     let bic = n as f64 * (residual_sum_of_squares / n as f64).ln() + k as f64 * (n as f64).ln();
     bic
 }

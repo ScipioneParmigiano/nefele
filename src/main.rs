@@ -2,21 +2,24 @@ pub mod ar;
 pub mod arima;
 pub mod arma;
 pub mod ma;
-pub mod farima;
+// pub mod farima;
+pub mod ancilla;
 
 use ar::*;
 use arima::*;
 use arma::*;
 use ma::*;
-use farima::*;
+// use farima::*;
 
 fn main() {
     //autoregressive
     {
         // let mut ar = AutoRegressive::new();
         // let sim: Vec<f64> = ar.simulate(10000, vec![-0.5, 0.3, 0.1], 0., 1.);
-        // println!("{:?}", sim);
-        // let sim = vec![];
+        // // // println!("{:?}", sim);
+        // // // let sim = vec![];
+        // ar.fit(&sim, 3, ARMethod::CSS);
+        // ar.summary();
         // ar.fit(&sim, 3, ARMethod::OLS);
         // ar.summary();
         // ar.fit(&sim, 3, ARMethod::YWALKER);
@@ -35,8 +38,10 @@ fn main() {
         // let mut ma: MovingAverage = MovingAverage::new();
         // let sim = ma.simulate(1000, vec![0.4, -0.2], 0., 1.0);
         // println!("\nsim: {:?} \n \n", sim);
+        // ma.fit(&sim, 2, MAMethod::CSS);
+        // ma.summary();
         // ma.fit(&sim, 2, MAMethod::DURBIN);
-        // println!("{:?}", ma.theta);
+        // ma.summary();
         // ma.autofit(&sim, 4, MACriterion::AIC);
         // ma.summary();
         // ma.autofit(&sim, 4, MACriterion::BIC);
@@ -46,18 +51,19 @@ fn main() {
     // arma
     {
         // let mut arma: ARMA = ARMA::new();
-        // let sim = arma.simulate(1000, vec![0.6], vec![0.4], 0., 1.0);
-        // println!("{:?}", sim);
-        // arma.fit(&sim, 1,1, ARMAMethod::);
+        // let sim = arma.simulate(1000, vec![0.1], vec![0.4], 0., 1.0);
+        // // println!("{:?}", sim);
+        // arma.fit(&sim, 1,1, ARMAMethod::CSS);
         // arma.summary();
     }
 
     // arima
     {
         // let mut arima: ARIMA = ARIMA::new();
-        // let sim = arima.simulate(1000, vec![-0.2], 1, vec![0.3], 0., 1.);
-        // println!("{:?}", sim);
-        // arima.fit(&sim, 1, 1, 1);
+        // let sim = arima.simulate(4000, vec![0.2], 1, vec![0.3], 0., 0.001);
+        // // println!("{:?}", sim);
+        // println!("{:?}", sim.len());
+        // arima.fit(&sim, 1, 1, 1, ARIMAMethod::CSS);
         // arima.summary();
     }
 
