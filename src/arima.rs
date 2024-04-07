@@ -1,15 +1,17 @@
 use rand_distr::{Distribution, Normal};
 use liblbfgs::lbfgs;
 use finitediff::FiniteDiff;
-use super::utils::{compute_variance, diff, inverse_diff, residuals, mean, pacf};
+use super::utils::{compute_variance, diff, inverse_diff, residuals, mean, pacf, compute_aic, compute_bic};
 
 #[derive(Debug, Clone)]
 
 pub struct ARIMA {
-    pub phi: Vec<f64>,
-    pub diff: usize,
-    pub theta: Vec<f64>,
+    phi: Vec<f64>,
+    diff: usize,
+    theta: Vec<f64>,
     sigma_squared: f64,
+    aic: f64,
+    bic: f64
 }
 
 pub enum ARIMAMethod {
@@ -17,9 +19,14 @@ pub enum ARIMAMethod {
     ML
 }
 
+pub enum ARIMACriterion{
+    AIC,
+    BIC
+}
+
 impl ARIMA {
     pub fn new() -> ARIMA {
-        ARIMA { phi: vec![0.0;1], diff:0, theta:vec![0.0;1], sigma_squared: 0.0 }
+        ARIMA { phi: vec![0.0;1], diff:0, theta:vec![0.0;1], sigma_squared: 0.0, aic: 0.0, bic: 0.0 }
     }
 
     pub fn summary(&self) {
@@ -80,7 +87,6 @@ impl ARIMA {
     }
 
     pub fn fit(&mut self, data: &Vec<f64>, p: usize, d: usize, q: usize, method: ARIMAMethod) {
-
         if d > 0 {
             let diff_data = diff(data, d);
 
@@ -91,12 +97,25 @@ impl ARIMA {
 
             self.diff = d;
             self.sigma_squared = compute_variance(&diff_data, &self.phi);
+            self.aic = compute_aic(data.len(), self.sigma_squared, p + q);
+            self.bic = compute_bic(data.len(), self.sigma_squared, p + q);
         } else {
             match method {
                 ARIMAMethod::CSS => Self::fit_css(self, &data, p, q),
                 ARIMAMethod::ML => Self::fit_ml(self, &data, p, q)
             }
             self.sigma_squared = compute_variance(&data, &self.phi);
+            self.aic = compute_aic(data.len(), self.sigma_squared, p + q);
+            self.bic = compute_bic(data.len(), self.sigma_squared, p + q);
+        }
+    }
+
+    pub fn autofit(&mut self, data: &Vec<f64>, d: usize, max_ar_order: usize, max_ma_order: usize, criterion: ARIMACriterion) {     
+        let diff_data = diff(data, d);
+        
+        match criterion {
+            ARIMACriterion::AIC => Self::autofit_aic(self, data, max_ar_order, max_ma_order),
+            ARIMACriterion::BIC => Self::autofit_bic(self, data, max_ar_order, max_ma_order),
         }
     }
 
@@ -168,4 +187,52 @@ impl ARIMA {
     }
 
     fn fit_ml(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {}
+
+    fn autofit_aic(&mut self, data: &Vec<f64>, max_ar_order: usize, max_ma_order: usize) {
+        let mut aic: Vec<f64> = Vec::with_capacity((max_ar_order + 1) * (max_ma_order + 1));
+    
+        for ar_order in 0..=max_ar_order {
+            for ma_order in 0..=max_ma_order {
+                Self::fit(self, data, ar_order,0, ma_order, ARIMAMethod::CSS);
+                aic.push(self.aic);
+
+                println!("ar: {}, ma: {}, aic: {}\n", ar_order, ma_order, self.aic);
+            }
+        }
+    
+        let min_order = aic
+            .iter()
+            .enumerate()
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index)
+            .unwrap_or(0);
+    
+        let ar_order = min_order / (max_ma_order + 1); // Integer division for ar_order
+        let ma_order = min_order % (max_ma_order + 1); // Using modulo for ma_order
+    
+        Self::fit(self, data, ar_order, 0, ma_order, ARIMAMethod::CSS);
+    }  
+
+    fn autofit_bic(&mut self, data: &Vec<f64>, max_ar_order: usize, max_ma_order: usize){
+        let mut bic:Vec<f64> = Vec::with_capacity(max_ar_order * max_ma_order);
+            for ar_order in 1..(max_ar_order+1){
+                for ma_order in 1..(max_ma_order+1){
+                Self::fit(self, data, ar_order,0, ma_order, ARIMAMethod::CSS);
+                bic.push(self.bic);}
+            // }
+
+            // let _min_order = bic
+            // .iter()
+            // .enumerate()
+            // .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            // .map(|(index, _)| index + 1) // Adding 1 to get position
+            // .unwrap_or(0);
+
+            let ar_order =1;
+            let ma_order =1;
+
+            // println!("{:?}",min_order);
+            Self::fit(self, data, ar_order, 0, ma_order, ARIMAMethod::CSS);
+        }
+    }
 }

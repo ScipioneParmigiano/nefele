@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 pub mod ar;
 pub mod arima;
 pub mod arma;
@@ -14,8 +16,8 @@ use farima::*;
 fn main() {
     //autoregressive
     {
-        let mut ar = AutoRegressive::new();
-        let sim: Vec<f64> = ar.simulate(1000, vec![-0.5, 0.3, 0.1], 0., 1.);
+        // let mut ar = AutoRegressive::new();
+        // let sim: Vec<f64> = ar.simulate(1000, vec![-0.5, 0.3, 0.1], 0., 1.);
         // ar.fit(&sim, 3, ARMethod::CSS);
         // ar.summary();
         // ar.fit(&sim, 3, ARMethod::OLS);
@@ -53,22 +55,28 @@ fn main() {
     // arma
     {
         // let mut arma: ARMA = ARMA::new();
-        // let sim = arma.simulate(1000, vec![0.1], vec![0.4], 0., 1.0);
+        // let sim = arma.simulate(2000, vec![0.1], vec![0.2], 0., 1.0);
         // arma.fit(&sim, 1,1, ARMAMethod::CSS);
         // arma.summary();
         
         // println!("{:?}", sim);
+
+        // arma.autofit(&sim, 2, 2, ARMACriterion::BIC);
+        // arma.summary();
     }
 
     // arima
     {
         // let mut arima: ARIMA = ARIMA::new();
-        // let sim = arima.simulate(4000, vec![0.2], 1, vec![0.3], 0., 0.001);
+        // let sim = arima.simulate(40, vec![0.2], 1, vec![0.3], 0., 1.0);
         // println!("{:?}", sim.len());
         // arima.fit(&sim, 1, 1, 1, ARIMAMethod::CSS);
         // arima.summary();
         
         // println!("{:?}", sim);
+
+        // arima.autofit(&sim, 1, 2, 2, ARIMACriterion::BIC);
+        // arima.summary();
     }
 
     // farima
@@ -80,3 +88,4 @@ fn main() {
         // println!("{:?}", sim);
     }
 }
+

@@ -5,8 +5,7 @@ use nalgebra::{DMatrix, DVector};
 use rand_distr::{Distribution, Normal};
 use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
-use crate::arma::mean;
-use crate::arma::residuals;
+use super::utils::{pacf, residuals, mean};
 
 #[derive(Debug, Clone)]
 pub struct MovingAverage {

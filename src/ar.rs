@@ -2,8 +2,8 @@ use nalgebra::{DMatrix, DVector};
 use rand_distr::{Distribution, Normal};
 use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
-use crate::arma::mean;
-use crate::arma::{pacf, residuals};
+use super::utils::{pacf, residuals, mean};
+
 
 
 
