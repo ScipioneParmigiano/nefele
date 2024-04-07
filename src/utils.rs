@@ -1,5 +1,71 @@
 use std::cmp;
 
+pub fn diffseries(x: &Vec<f64>, d: f64) -> Vec<f64> {
+    if d == 0.{
+        return x.to_owned()
+    } else {
+        let n = x.len();
+        if n < 2 {
+            panic!("input series must have at least two elements");
+        }
+        let mut x_mean = 0.0;
+        for &val in x {
+            if val.is_nan() {
+                panic!("NAs in x");
+            }
+            x_mean += val;
+        }
+        x_mean /= n as f64;
+        let mut x_centered = vec![0.0; n];
+        for i in 0..n {
+            x_centered[i] = x[i] - x_mean;
+        }
+        
+        let mut pi = vec![0.0; n];
+        pi[0] = -d;
+        for k in 1..n {
+            pi[k] = pi[k - 1] * (k as f64 - d) / (k as f64 + 1.0);
+        }
+        let mut ydiff = vec![0.0; n];
+        ydiff[0] = x_centered[0];
+        for i in 1..n {
+            let mut sum = 0.0;
+            for j in (0..i).rev() {
+                sum += pi[i - j - 1] * x_centered[j];
+            }
+            ydiff[i] = x_centered[i] + sum;
+            // println!("{:?}", x[i]);
+        }
+        ydiff
+}
+}
+
+pub fn residuals(
+    x: &Vec<f64>,
+    intercept: f64,
+    phi: &Vec<f64>,
+    theta: &Vec<f64>,
+) -> Vec<f64> {
+    let zero: f64 = From::from(0.0);
+
+    let mut residuals: Vec<f64> = Vec::new();
+    for _ in 0..phi.len() {
+        residuals.push(zero);
+    }
+    for t in phi.len()..x.len() {
+        let mut xt: f64 = intercept;
+        for j in 0..phi.len() {
+            xt += phi[j] * x[t - j - 1];
+        }
+        for j in 0..cmp::min(theta.len(), t) {
+            xt += theta[j] * residuals[t - j - 1];
+        }
+        residuals.push(x[t] - xt);
+    }
+
+    residuals
+}
+
 pub fn diff(x: &Vec<f64>, d: usize) -> Vec<f64> {
     let mut y: Vec<f64> = x.to_vec();
     let len = y.len();
@@ -37,31 +103,6 @@ pub fn cumsum(x: Vec<f64>) -> Vec<f64> {
 }
 
 
-pub fn residuals(
-    x: &Vec<f64>,
-    intercept: f64,
-    phi: &Vec<f64>,
-    theta: &Vec<f64>,
-) -> Vec<f64> {
-    let zero: f64 = From::from(0.0);
-
-    let mut residuals: Vec<f64> = Vec::new();
-    for _ in 0..phi.len() {
-        residuals.push(zero);
-    }
-    for t in phi.len()..x.len() {
-        let mut xt: f64 = intercept;
-        for j in 0..phi.len() {
-            xt += phi[j] * x[t - j - 1];
-        }
-        for j in 0..cmp::min(theta.len(), t) {
-            xt += theta[j] * residuals[t - j - 1];
-        }
-        residuals.push(x[t] - xt);
-    }
-
-    residuals
-}
 
 pub fn pacf(
     x: &Vec<f64>,
@@ -112,7 +153,7 @@ pub fn acf(
     y
 }
 
-pub fn pacf_rho_cov0(
+fn pacf_rho_cov0(
     rho: &Vec<f64>,
     cov0: f64,
     max_lag: Option<usize>,
@@ -217,4 +258,12 @@ pub fn compute_variance(data: &Vec<f64>, coefficients: &Vec<f64>) -> f64 {
     let variance = sum_of_squares / (n - q) as f64;
 
     variance
+}
+
+pub fn closest_integer(x: f64) -> usize {
+    if x >= 0.0 {
+        (x + 0.5) as usize
+    } else {
+        (x - 0.5) as usize
+    }
 }

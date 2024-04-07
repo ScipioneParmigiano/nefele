@@ -1,7 +1,7 @@
 use rand_distr::{Distribution, Normal};
 use liblbfgs::lbfgs;
 use finitediff::FiniteDiff;
-use super::ancilla::{compute_variance, diff, inverse_diff, residuals, mean, pacf, };
+use super::utils::{compute_variance, diff, inverse_diff, residuals, mean, pacf};
 
 #[derive(Debug, Clone)]
 
@@ -13,7 +13,8 @@ pub struct ARIMA {
 }
 
 pub enum ARIMAMethod {
-    CSS
+    CSS,
+    ML
 }
 
 impl ARIMA {
@@ -84,14 +85,16 @@ impl ARIMA {
             let diff_data = diff(data, d);
 
             match method {
-                ARIMAMethod::CSS => Self::fit_css(self, &diff_data, p, q)
+                ARIMAMethod::CSS => Self::fit_css(self, &diff_data, p, q),
+                ARIMAMethod::ML => Self::fit_ml(self, &diff_data, p, q)
             }
 
             self.diff = d;
             self.sigma_squared = compute_variance(&diff_data, &self.phi);
         } else {
             match method {
-                ARIMAMethod::CSS => Self::fit_css(self, &data, p, q)
+                ARIMAMethod::CSS => Self::fit_css(self, &data, p, q),
+                ARIMAMethod::ML => Self::fit_ml(self, &data, p, q)
             }
             self.sigma_squared = compute_variance(&data, &self.phi);
         }
@@ -163,4 +166,6 @@ impl ARIMA {
         self.phi = coef[1..=ar].to_vec();
         self.theta = coef[ar+1..].to_vec();
     }
+
+    fn fit_ml(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {}
 }

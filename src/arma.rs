@@ -14,7 +14,6 @@ pub struct ARMA {
 }
 
 pub enum ARMAMethod {
-    HRISSANEN,
     CSS,
     ML
 }
@@ -87,7 +86,6 @@ impl ARMA {
 
     pub fn fit(&mut self, data: &Vec<f64>, ar_order: usize, ma_order: usize, method: ARMAMethod) {
         match method {
-            ARMAMethod::HRISSANEN => Self::fit_hannan_rissanen(self, data, ar_order, ma_order),
             ARMAMethod::CSS => Self::fit_css(self, data, ar_order, ma_order),
             ARMAMethod::ML => Self::fit_ml(self, data, ar_order, ma_order),
         }
@@ -103,8 +101,6 @@ impl ARMA {
             ARMACriterion::BIC => Self::autofit_bic(self, data, max_ar_order, max_ma_order),
         }
     }
-
-    fn fit_hannan_rissanen(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {}
 
     fn fit_ml(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {}
 
