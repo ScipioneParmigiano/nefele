@@ -288,4 +288,3 @@ pub fn compute_bic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let bic = n as f64 * (residual_sum_of_squares / n as f64).ln() + k as f64 * (n as f64).ln();
     bic
 }
-
