@@ -5,7 +5,7 @@ use nalgebra::{DMatrix, DVector};
 use rand_distr::{Distribution, Normal};
 use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
-use super::utils::{pacf, residuals, mean};
+use super::utils::{residuals, mean};
 
 /// MovingAverage struct represents a moving average model.
 #[derive(Debug, Clone)]
@@ -83,7 +83,7 @@ impl MovingAverage {
         output[init..].to_vec()
     }
 
-    /// Fits the moving average model to the provided data.
+    /// Fits the moving average model to the provided data according to the selected method.
     pub fn fit(&mut self, data: &Vec<f64>, order: usize, method: MAMethod) {
         match method {
             MAMethod::DURBIN => Self::fit_durbin(self, data, order),
@@ -169,7 +169,6 @@ impl MovingAverage {
         let g = |coef: &Vec<f64>| coef.forward_diff(&f);
 
         // Initial coefficients
-        // Todo: These initial guesses are rather arbitrary.
         let mut coef: Vec<f64> = Vec::new();
 
         // Initial guess for the intercept: First value of data

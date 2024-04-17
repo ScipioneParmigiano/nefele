@@ -31,7 +31,7 @@ impl AutoRegressive {
     /// Creates a new AutoRegressive struct with default values.
     pub fn new() -> AutoRegressive {
         AutoRegressive {
-            phi: vec![0.0; 1],      // Initialize with one coefficient
+            phi: vec![0.0; 1],
             sigma_squared: 0.0,
             aic: 0.0,
             bic: 0.0
@@ -81,7 +81,7 @@ impl AutoRegressive {
         output[ar_order..].to_vec()
     }
 
-    /// Fits the autoregressive model to the provided data.
+    /// Fits the autoregressive model to the provided data according to the selected method.
     pub fn fit(&mut self, data: &Vec<f64>, order: usize, method: ARMethod) {
         match method {
             ARMethod::OLS => Self::fit_ols(self, data, order),
@@ -95,7 +95,7 @@ impl AutoRegressive {
         self.bic = compute_bic(data.len(), self.sigma_squared, order);
     }
 
-    /// Automatically fits the autoregressive model by selecting the order based on a criterion.
+    /// Automatically fits the autoregressive model by selecting the order based on a criterion (AIC or BIC).
     pub fn autofit(&mut self, data: &Vec<f64>, max_order: usize, method: ARCriterion) {
         match method {
             ARCriterion::AIC => Self::autofit_aic(self, data, max_order),
@@ -220,7 +220,6 @@ impl AutoRegressive {
         let g = |coef: &Vec<f64>| coef.forward_diff(&f);
 
         // Initial coefficients
-        // Todo: These initial guesses are rather arbitrary.
         let mut coef: Vec<f64> = Vec::new();
 
         // Initial guess for the intercept: First value of data
@@ -297,7 +296,7 @@ fn compute_variance(data: &[f64], coefficients: &[f64]) -> f64 {
     let mut errors: Vec<f64> = Vec::new();
 
     // Errors for the AR(n) model
-    let n = 0; //coefficients.len();
+    let n = 0; 
     for i in coefficients.len()..data.len() {
         let mut error = data[i];
         for j in 0..coefficients.len() {

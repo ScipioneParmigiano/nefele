@@ -1,8 +1,7 @@
 use rand_distr::{Distribution, Normal};
 use liblbfgs::lbfgs;
-use std::cmp;
 use finitediff::FiniteDiff;
-use super::utils::{log_likelihood, pacf, residuals, compute_aic, compute_bic, compute_variance, mean};
+use super::utils::{pacf, residuals, compute_aic, compute_bic, compute_variance, mean};
 
 /// ARMA struct represents an autoregressive moving average model.
 #[derive(Debug, Clone)]
@@ -88,7 +87,7 @@ impl ARMA {
         output
     }
 
-    /// Fits the ARMA model to the provided data.
+    /// Fits the ARMA model to the provided data according to the selected method.
     pub fn fit(&mut self, data: &Vec<f64>, ar_order: usize, ma_order: usize, method: ARMAMethod) {
         match method {
             ARMAMethod::CSS => Self::fit_css(self, data, ar_order, ma_order),
@@ -135,7 +134,6 @@ impl ARMA {
         let g = |coef: &Vec<f64>| coef.forward_diff(&f);
 
         // Initial coefficients
-        // Todo: These initial guesses are rather arbitrary.
         let mut coef: Vec<f64> = Vec::new();
 
         // Initial guess for the intercept: First value of data
@@ -207,19 +205,10 @@ impl ARMA {
                 for ma_order in 1..(max_ma_order+1){
                 Self::fit(self, data, ar_order,ma_order, ARMAMethod::CSS);
                 bic.push(self.bic);}
-            // }
-
-            // let _min_order = bic
-            // .iter()
-            // .enumerate()
-            // .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-            // .map(|(index, _)| index + 1) // Adding 1 to get position
-            // .unwrap_or(0);
 
             let ar_order =1;
             let ma_order =1;
 
-            // println!("{:?}",min_order);
             Self::fit(self, data, ar_order, ma_order, ARMAMethod::CSS);
         }
     }

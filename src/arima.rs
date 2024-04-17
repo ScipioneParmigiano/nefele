@@ -121,8 +121,8 @@ impl ARIMA {
         let diff_data = diff(data, d);
         
         match criterion {
-            ARIMACriterion::AIC => Self::autofit_aic(self, data, max_ar_order, max_ma_order),
-            ARIMACriterion::BIC => Self::autofit_bic(self, data, max_ar_order, max_ma_order),
+            ARIMACriterion::AIC => Self::autofit_aic(self, &diff_data, max_ar_order, max_ma_order),
+            ARIMACriterion::BIC => Self::autofit_bic(self, &diff_data, max_ar_order, max_ma_order),
         }
     }
 
@@ -150,7 +150,6 @@ impl ARIMA {
         let g = |coef: &Vec<f64>| coef.forward_diff(&f);
 
         // Initial coefficients
-        // Todo: These initial guesses are rather arbitrary.
         let mut coef: Vec<f64> = Vec::new();
 
         // Initial guess for the intercept: First value of data
@@ -226,19 +225,10 @@ impl ARIMA {
                 for ma_order in 1..(max_ma_order+1){
                 Self::fit(self, data, ar_order,0, ma_order, ARIMAMethod::CSS);
                 bic.push(self.bic);}
-            // }
-
-            // let _min_order = bic
-            // .iter()
-            // .enumerate()
-            // .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-            // .map(|(index, _)| index + 1) // Adding 1 to get position
-            // .unwrap_or(0);
-
+            
             let ar_order =1;
             let ma_order =1;
 
-            // println!("{:?}",min_order);
             Self::fit(self, data, ar_order, 0, ma_order, ARIMAMethod::CSS);
         }
     }

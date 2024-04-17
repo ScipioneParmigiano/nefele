@@ -1,6 +1,6 @@
 use std::cmp;
 extern crate nalgebra as na;
-use na::{DVector, DMatrix};
+use na::DVector;
 
 pub fn diffseries(x: &Vec<f64>, d: f64) -> Vec<f64> {
     if d == 0.{
@@ -269,12 +269,6 @@ pub fn closest_integer(x: f64) -> usize {
     } else {
         (x - 0.5) as usize
     }
-}
-
-pub fn log_likelihood(y: &DVector<f64>, y_hat: &DVector<f64>, sigma2: f64) -> f64 {
-    let n = y.len() as f64;
-    let residual_sum_of_squares = (y - y_hat).dot(&(y - y_hat));
-    -0.5 * (n * (2.0 * std::f64::consts::PI * sigma2).ln() + residual_sum_of_squares / sigma2)
 }
 
 pub fn compute_aic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
