@@ -7,35 +7,39 @@ use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
 use super::utils::{pacf, residuals, mean};
 
+/// MovingAverage struct represents a moving average model.
 #[derive(Debug, Clone)]
 pub struct MovingAverage {
-    pub theta: Vec<f64>,
-    pub sigma_squared: f64,
-    pub aic:f64,
-    pub bic:f64
+    pub theta: Vec<f64>,        // MA coefficients
+    pub sigma_squared: f64,     // Variance of the model
+    pub aic: f64,               // AIC (Akaike Information Criterion) value
+    pub bic: f64                // BIC (Bayesian Information Criterion) value
 }
 
+/// MAMethod represents different methods for fitting a moving average model.
 pub enum MAMethod {
-    DURBIN,
-    CSS
+    DURBIN,    // Durbin Method
+    CSS        // Conditional Sum of Squares
 }
 
+/// MACriterion represents criteria for selecting the order of the moving average model.
 pub enum MACriterion {
-    AIC,
-    BIC,
+    AIC,    // Akaike Information Criterion
+    BIC     // Bayesian Information Criterion
 }
 
 impl MovingAverage {
-    // create a new MA struct
+    /// Creates a new MovingAverage struct with default values.
     pub fn new() -> MovingAverage {
         MovingAverage {
-            theta: vec![0.0; 1],
+            theta: vec![0.0; 1],      // Initialize with one coefficient
             sigma_squared: 0.0,
             aic: 0.0,
-            bic:0.0
+            bic: 0.0
         }
     }
 
+    /// Prints a summary of the moving average model.
     pub fn summary(&self) {
         println!(
             "coefficients: {:?} \nsigma^2: {}",
@@ -43,7 +47,7 @@ impl MovingAverage {
         )
     }
 
-    // simulate a MA process
+    /// Simulates a moving average process.
     pub fn simulate(
         &self,
         length: usize,
@@ -56,7 +60,7 @@ impl MovingAverage {
         let ma_order = param.len();
         let normal: Normal<f64> = Normal::new(error_mean, error_variance.sqrt()).unwrap();
 
-        // initialization
+        // Initialization
         let init = ma_order;
         for _ in 0..(init + length) {
             let mut rng = rand::thread_rng();
@@ -79,6 +83,7 @@ impl MovingAverage {
         output[init..].to_vec()
     }
 
+    /// Fits the moving average model to the provided data.
     pub fn fit(&mut self, data: &Vec<f64>, order: usize, method: MAMethod) {
         match method {
             MAMethod::DURBIN => Self::fit_durbin(self, data, order),
@@ -90,6 +95,7 @@ impl MovingAverage {
         self.bic = compute_bic(data.len(), self.sigma_squared, order);
     }
 
+    /// Automatically fits the moving average model by selecting the order based on a criterion.
     pub fn autofit(&mut self, data: &Vec<f64>, max_order: usize, criterion: MACriterion) {
         match criterion {
             MACriterion::AIC => Self::autofit_aic(self, data, max_order),
@@ -99,14 +105,13 @@ impl MovingAverage {
 
     fn fit_durbin(&mut self, data: &Vec<f64>, order: usize) {
         let m: usize= ((10*order * data.len()) as f64).ln().round() as usize;
-        // println!("{}", m);
         let n = data.len() - m;
 
-        // first step: estimate ar(m)
+        // First step: estimate AR(m)
         let mut ar_m = AutoRegressive::new();
         ar_m.fit(data, m, ARMethod::YWALKER);
 
-        let mut eps: Vec<f64> = Vec::new(); //vec![0.0; m];
+        let mut eps: Vec<f64> = Vec::new(); 
 
         for i in m..data.len() {
             let mut prediction = 0.0;
@@ -124,7 +129,7 @@ impl MovingAverage {
             .map(|(&d, &e)| d - e)
             .collect();
 
-            // second step: estimate ma parameters through least squares
+        // Second step: estimate MA parameters through least squares
         let mut x = DMatrix::from_element(n - order, order, 0.0);
         let y: Vec<f64> = y_[order..].iter().copied().collect();
         let y = DVector::from_vec(y);
@@ -199,62 +204,42 @@ impl MovingAverage {
     }
 
     fn autofit_aic(&mut self, data: &Vec<f64>, max_order: usize) {
-        let mut aic:Vec<f64> = Vec::with_capacity(max_order);
-        for order in 1..(max_order+1){
+        let mut aic: Vec<f64> = Vec::with_capacity(max_order);
+        for order in 1..(max_order + 1) {
             Self::fit(self, data, order, MAMethod::DURBIN);
             aic.push(self.aic);
         }
 
         let min_order = aic
-        .iter()
-        .enumerate()
-        .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index + 1) // Adding 1 to get position
-        .unwrap_or(0);
+            .iter()
+            .enumerate()
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index + 1) // Adding 1 to get position
+            .unwrap_or(0);
 
-        // println!("{:?}",min_order);
         Self::fit(self, data, min_order, MAMethod::DURBIN);
     }
 
     fn autofit_bic(&mut self, data: &Vec<f64>, max_order: usize) {
-        let mut bic_values: Vec<f64> = Vec::with_capacity(max_order);
-
-        for order in 1..=max_order {
-            let mut ma_model = MovingAverage::new();
-            ma_model.fit(data, order, MAMethod::DURBIN);
-            bic_values.push(ma_model.bic);
+        let mut bic: Vec<f64> = Vec::with_capacity(max_order);
+        for order in 1..(max_order + 1) {
+            Self::fit(self, data, order, MAMethod::DURBIN);
+            bic.push(self.bic);
         }
 
-        let min_order = bic_values
+        let min_order = bic
             .iter()
             .enumerate()
-            .min_by(|&(_, bic_a), &(_, bic_b)| bic_a.partial_cmp(bic_b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(index, _)| index + 1)
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index + 1) // Adding 1 to get position
             .unwrap_or(0);
 
-        self.fit(data, min_order, MAMethod::DURBIN);
+        Self::fit(self, data, min_order, MAMethod::DURBIN);
     }
-    
 }
 
+/// Computes the variance of the residuals.
 fn compute_variance(data: &Vec<f64>, coefficients: &Vec<f64>) -> f64 {
-    // let n = coefficients.len();
-    // let mut errors: Vec<f64> = Vec::new();
-
-    // // errors for the AR(n) model
-    // for i in n..data.len() {
-    //     let mut error = data[i];
-    //     for j in 0..n {
-    //         error -= coefficients[j] * data[i - j - 1];
-    //     }
-    //     errors.push(error);
-    // }
-
-    // // variance of errors
-    // let variance: f64 = errors.iter().map(|&e| (e).powi(2)).sum::<f64>() / (errors.len()-coefficients.len()) as f64;
-
-    // variance
-
     let q = 0; // coefficients.len();
     let n = data.len();
 
@@ -276,15 +261,16 @@ fn compute_variance(data: &Vec<f64>, coefficients: &Vec<f64>) -> f64 {
     variance
 }
 
+/// Computes the Akaike Information Criterion.
 fn compute_aic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let k = p; // Number of parameters (p autoregressive parameters)
     let aic = 2.0 * k as f64 + n as f64 * (residual_sum_of_squares / n as f64).ln();
     aic
 }
 
+/// Computes the Bayesian Information Criterion.
 fn compute_bic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let k = p; // Number of parameters (p autoregressive parameters)
     let bic = n as f64 * (residual_sum_of_squares / n as f64).ln() + k as f64 * (n as f64).ln();
     bic
 }
-

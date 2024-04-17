@@ -4,40 +4,41 @@ use finitediff::FiniteDiff;
 use liblbfgs::lbfgs;
 use super::utils::{pacf, residuals, mean};
 
-
-
-
+/// AutoRegressive struct represents an autoregressive model.
 #[derive(Debug, Clone)]
 pub struct AutoRegressive {
-    pub phi: Vec<f64>,
-    sigma_squared: f64,
-    aic:f64,
-    bic:f64
+    pub phi: Vec<f64>,           // AR coefficients
+    sigma_squared: f64,          // Variance of the model
+    aic: f64,                    // AIC (Akaike Information Criterion) value
+    bic: f64                     // BIC (Bayesian Information Criterion) value
 }
 
+/// ARMethod represents different methods for fitting an autoregressive model.
 pub enum ARMethod {
-    OLS,
-    YWALKER,
-    BURG,
-    CSS
+    OLS,        // Ordinary Least Squares
+    YWALKER,    // Yule-Walker Method
+    BURG,       // Burg Algorithm
+    CSS         // Conditional Sum of Squares
 }
 
+/// ARCriterion represents criteria for selecting the order of the autoregressive model.
 pub enum ARCriterion {
-    AIC,
-    BIC,
+    AIC,    // Akaike Information Criterion
+    BIC     // Bayesian Information Criterion
 }
 
 impl AutoRegressive {
-    // create a new AR struct
+    /// Creates a new AutoRegressive struct with default values.
     pub fn new() -> AutoRegressive {
         AutoRegressive {
-            phi: vec![0.0; 1],
+            phi: vec![0.0; 1],      // Initialize with one coefficient
             sigma_squared: 0.0,
             aic: 0.0,
-            bic:0.0
+            bic: 0.0
         }
     }
 
+    /// Prints a summary of the autoregressive model.
     pub fn summary(&self) {
         println!(
             "coefficients: {:?} \nsigma^2: {}",
@@ -45,7 +46,7 @@ impl AutoRegressive {
         )
     }
 
-    // simulate an AR process
+    /// Simulates an autoregressive process.
     pub fn simulate(
         &mut self,
         length: usize,
@@ -58,7 +59,7 @@ impl AutoRegressive {
 
         let ar_order = param.len();
 
-        // initialization
+        // Initialization
         let init = ar_order;
         for _ in 0..(init + length) {
             let mut rng = rand::thread_rng();
@@ -80,6 +81,7 @@ impl AutoRegressive {
         output[ar_order..].to_vec()
     }
 
+    /// Fits the autoregressive model to the provided data.
     pub fn fit(&mut self, data: &Vec<f64>, order: usize, method: ARMethod) {
         match method {
             ARMethod::OLS => Self::fit_ols(self, data, order),
@@ -93,6 +95,7 @@ impl AutoRegressive {
         self.bic = compute_bic(data.len(), self.sigma_squared, order);
     }
 
+    /// Automatically fits the autoregressive model by selecting the order based on a criterion.
     pub fn autofit(&mut self, data: &Vec<f64>, max_order: usize, method: ARCriterion) {
         match method {
             ARCriterion::AIC => Self::autofit_aic(self, data, max_order),
@@ -131,7 +134,7 @@ impl AutoRegressive {
     fn fit_yule_walker(&mut self, data: &Vec<f64>, order: usize) {
         let n = data.len();
 
-        // autocorrelation matrix rho
+        // Autocorrelation matrix rho
         let mut rho = DMatrix::<f64>::zeros(order, order);
 
         for i in 0..order {
@@ -160,7 +163,7 @@ impl AutoRegressive {
     }
 
     fn fit_burg(&mut self, data: &Vec<f64>, order: usize) {
-        // autocorrelation coefficients
+        // Autocorrelation coefficients
         let mut r: Vec<f64> = vec![0.0; order + 1];
         for k in 0..=order {
             for i in k..data.len() {
@@ -255,46 +258,45 @@ impl AutoRegressive {
     }
 
     fn autofit_aic(&mut self, data: &Vec<f64>, max_order: usize) {
-        let mut aic:Vec<f64> = Vec::with_capacity(max_order);
-        for order in 1..(max_order+1){
+        let mut aic: Vec<f64> = Vec::with_capacity(max_order);
+        for order in 1..(max_order + 1) {
             Self::fit(self, data, order, ARMethod::YWALKER);
             aic.push(self.aic);
         }
 
         let min_order = aic
-        .iter()
-        .enumerate()
-        .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index + 1) // Adding 1 to get position
-        .unwrap_or(0);
+            .iter()
+            .enumerate()
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index + 1) // Adding 1 to get position
+            .unwrap_or(0);
 
-        // println!("{:?}",min_order);
         Self::fit(self, data, min_order, ARMethod::YWALKER);
     }
 
     fn autofit_bic(&mut self, data: &Vec<f64>, max_order: usize) {
-        let mut bic:Vec<f64> = Vec::with_capacity(max_order);
-        for order in 1..(max_order+1){
+        let mut bic: Vec<f64> = Vec::with_capacity(max_order);
+        for order in 1..(max_order + 1) {
             Self::fit(self, data, order, ARMethod::YWALKER);
             bic.push(self.bic);
         }
 
         let min_order = bic
-        .iter()
-        .enumerate()
-        .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index + 1) // Adding 1 to get position
-        .unwrap_or(0);
+            .iter()
+            .enumerate()
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index + 1) // Adding 1 to get position
+            .unwrap_or(0);
 
         Self::fit(self, data, min_order, ARMethod::YWALKER);
     }
-    
 }
 
+/// Computes the variance of the residuals.
 fn compute_variance(data: &[f64], coefficients: &[f64]) -> f64 {
     let mut errors: Vec<f64> = Vec::new();
 
-    // errors for the AR(n) model
+    // Errors for the AR(n) model
     let n = 0; //coefficients.len();
     for i in coefficients.len()..data.len() {
         let mut error = data[i];
@@ -310,12 +312,14 @@ fn compute_variance(data: &[f64], coefficients: &[f64]) -> f64 {
     variance
 }
 
+/// Computes the Akaike Information Criterion.
 fn compute_aic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let k = p; // Number of parameters (p autoregressive parameters)
     let aic = 2.0 * k as f64 + n as f64 * (residual_sum_of_squares / n as f64).ln();
     aic
 }
 
+/// Computes the Bayesian Information Criterion.
 fn compute_bic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let k = p; // Number of parameters (p autoregressive parameters)
     let bic = n as f64 * (residual_sum_of_squares / n as f64).ln() + k as f64 * (n as f64).ln();

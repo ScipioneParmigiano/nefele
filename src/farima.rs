@@ -2,51 +2,39 @@ use super::utils::{mean, diff, pacf, diffseries, residuals, closest_integer, com
 use liblbfgs::lbfgs;
 use finitediff::FiniteDiff;
 
+/// FARIMA struct represents a fractional autoregressive integrated moving average model.
 #[derive(Debug, Clone)]
 pub struct FARIMA {
-    phi: Vec<f64>,
-    diff: f64,
-    theta: Vec<f64>,
-    sigma_squared: f64
+    pub phi: Vec<f64>,          // AR coefficients
+    pub diff: f64,              // Fractional differencing parameter
+    pub theta: Vec<f64>,        // MA coefficients
+    pub sigma_squared: f64      // Variance of the model
 }
 
+/// FARIMAMethod represents different methods for fitting a FARIMA model.
 pub enum FARIMAMethod {}
 
 impl FARIMA {
+    /// Creates a new FARIMA struct with default values.
     pub fn new() -> FARIMA {
         let phi: Vec<f64> = vec![0.0; 1];
         let theta: Vec<f64> = vec![0.0; 1];
         FARIMA { phi, diff: 0.0, theta, sigma_squared: 0.0 }
     }
 
+    /// Prints a summary of the FARIMA model.
     pub fn summary(&self) {
         println!("phi: {:?}\nd: {}\ntheta: {:?} \nsigma_squared {}", self.phi, self.diff, self.theta, self.sigma_squared);
     }
 
-    // pub fn simulate(
-    //     &self,
-    //     length: usize,
-    //     phi: Vec<f64>,
-    //     d: f64,
-    //     theta: Vec<f64>,
-    //     error_mean: f64,
-    //     error_variance: f64,
-    // ) -> Vec<f64> {
-    //     let mut output: Vec<f64> = Vec::with_capacity(length);
-    //     output
-    // }
-
+    /// Fits the FARIMA model to the provided data.
     pub fn fit(&mut self, data: &Vec<f64>, p: usize, d: f64, q: usize) {
 
         let int_d = closest_integer(d);
-        // println!("d f {}", d - int_d as f64);
-        // fractional integration
+
+        // Fractional integration
         let mut diff_data = diffseries(data, d - int_d as f64);
-        // println!("fint {:?}",diff_data);
-        // println!("------------");
-        // integer integration
         diff_data = diff(&diff_data, int_d);
-        // println!("int {:?}",diff_data);
 
         self.diff = d;
         Self::fit_css(self, &diff_data, p, q);
@@ -77,13 +65,10 @@ impl FARIMA {
         let g = |coef: &Vec<f64>| coef.forward_diff(&f);
 
         // Initial coefficients
-        // Todo: These initial guesses are rather arbitrary.
         let mut coef: Vec<f64> = Vec::new();
 
         // Initial guess for the intercept: First value of data
         coef.push(mean(&data));
-
-        // println!("media: {}", mean(&data));
 
         // Initial guess for the p coefficients: Values of the PACF
         if p > 0 {
@@ -114,15 +99,9 @@ impl FARIMA {
             |_prng| {
                 false 
             },
-        ) {
-            // tracing::warn!("{}", e);
-        }
+        ) {}
 
-        // println!("cola{:?}", coef);
-
-        
         self.phi = coef[1..=p].to_vec();
         self.theta = coef[p+1..].to_vec();
     }
 }
-

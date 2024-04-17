@@ -4,39 +4,42 @@ use std::cmp;
 use finitediff::FiniteDiff;
 use super::utils::{log_likelihood, pacf, residuals, compute_aic, compute_bic, compute_variance, mean};
 
-
+/// ARMA struct represents an autoregressive moving average model.
 #[derive(Debug, Clone)]
 pub struct ARMA {
-    phi: Vec<f64>,
-    theta: Vec<f64>,
-    sigma_squared: f64,
-    aic: f64,
-    bic: f64
+    pub phi: Vec<f64>,              // AR coefficients
+    pub theta: Vec<f64>,            // MA coefficients
+    pub sigma_squared: f64,         // Variance of the model
+    pub aic: f64,                   // AIC (Akaike Information Criterion) value
+    pub bic: f64                    // BIC (Bayesian Information Criterion) value
 }
 
+/// ARMAMethod represents different methods for fitting an ARMA model.
 pub enum ARMAMethod {
-    CSS,
-    ML
+    CSS,    // Conditional Sum of Squares
+    ML      // Maximum Likelihood
 }
 
+/// ARMACriterion represents criteria for selecting the order of the ARMA model.
 pub enum ARMACriterion{
-    AIC,
-    BIC
+    AIC,    // Akaike Information Criterion
+    BIC     // Bayesian Information Criterion
 }
 
 impl ARMA {
-    // create a new ARMA struct
+    /// Creates a new ARMA struct with default values.
     pub fn new() -> ARMA {
         let phi: Vec<f64> = vec![0.0; 1];
         let theta: Vec<f64> = vec![0.0; 1];
         ARMA { phi, theta, sigma_squared: 0.0, aic: 0.0, bic: 0.0 }
     }
 
+    /// Prints a summary of the ARMA model.
     pub fn summary(&self) {
         println!("phi: {:?} \ntheta: {:?} \nsigma^2: {:?}", self.phi, self.theta, self.sigma_squared);
     }
 
-    // simulate an ARMA process
+    /// Simulates an ARMA process.
     pub fn simulate(
         &self,
         length: usize,
@@ -51,7 +54,7 @@ impl ARMA {
         let ma_order = ma_param.len();
         let normal: Normal<f64> = Normal::new(error_mean, error_variance.sqrt()).unwrap();
 
-        // initialization
+        // Initialization
         let init = ar_order + ma_order;
         for _ in 0..(init + length) {
             let mut rng = rand::thread_rng();
@@ -85,6 +88,7 @@ impl ARMA {
         output
     }
 
+    /// Fits the ARMA model to the provided data.
     pub fn fit(&mut self, data: &Vec<f64>, ar_order: usize, ma_order: usize, method: ARMAMethod) {
         match method {
             ARMAMethod::CSS => Self::fit_css(self, data, ar_order, ma_order),
@@ -93,11 +97,11 @@ impl ARMA {
 
         
         self.sigma_squared = compute_variance(&data, &self.phi);
-        // let res = self.sigma_squared * data.len();
         self.aic = compute_aic(data.len(), self.sigma_squared, ar_order + ma_order);
         self.bic = compute_bic(data.len(), self.sigma_squared, ar_order + ma_order);
     }
 
+    /// Automatically fits the ARMA model by selecting the order based on a criterion.
     pub fn autofit(&mut self, data: &Vec<f64>, max_ar_order: usize, max_ma_order: usize, criterion: ARMACriterion) {     
         match criterion {
             ARMACriterion::AIC => Self::autofit_aic(self, data, max_ar_order, max_ma_order),
@@ -181,8 +185,6 @@ impl ARMA {
             for ma_order in 0..=max_ma_order {
                 Self::fit(self, data, ar_order, ma_order, ARMAMethod::CSS);
                 aic.push(self.aic);
-
-                // println!("ar: {}, ma: {}, aic: {}\n", ar_order, ma_order, self.aic);
             }
         }
     

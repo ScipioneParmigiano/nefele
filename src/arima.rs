@@ -3,32 +3,36 @@ use liblbfgs::lbfgs;
 use finitediff::FiniteDiff;
 use super::utils::{compute_variance, diff, inverse_diff, residuals, mean, pacf, compute_aic, compute_bic};
 
+/// ARIMA struct represents an autoregressive integrated moving average model.
 #[derive(Debug, Clone)]
-
 pub struct ARIMA {
-    phi: Vec<f64>,
-    diff: usize,
-    theta: Vec<f64>,
-    sigma_squared: f64,
-    aic: f64,
-    bic: f64
+    pub phi: Vec<f64>,              // AR coefficients
+    pub diff: usize,                // Differencing order
+    pub theta: Vec<f64>,            // MA coefficients
+    pub sigma_squared: f64,         // Variance of the model
+    pub aic: f64,                   // AIC (Akaike Information Criterion) value
+    pub bic: f64                    // BIC (Bayesian Information Criterion) value
 }
 
+/// ARIMAMethod represents different methods for fitting an ARIMA model.
 pub enum ARIMAMethod {
-    CSS,
-    ML
+    CSS,    // Conditional Sum of Squares
+    ML      // Maximum Likelihood
 }
 
+/// ARIMACriterion represents criteria for selecting the order of the ARIMA model.
 pub enum ARIMACriterion{
-    AIC,
-    BIC
+    AIC,    // Akaike Information Criterion
+    BIC     // Bayesian Information Criterion
 }
 
 impl ARIMA {
+    /// Creates a new ARIMA struct with default values.
     pub fn new() -> ARIMA {
         ARIMA { phi: vec![0.0;1], diff:0, theta:vec![0.0;1], sigma_squared: 0.0, aic: 0.0, bic: 0.0 }
     }
 
+    /// Prints a summary of the ARIMA model.
     pub fn summary(&self) {
         println!(
             "phi: {:?}\nd: {}\ntheta: {:?} \nsigma^2: {:?}",
@@ -36,6 +40,7 @@ impl ARIMA {
         )
     }
 
+    /// Simulates an ARIMA process.
     pub fn simulate(&self, length: usize, phi: Vec<f64>,
         diff: usize,
         theta: Vec<f64>, error_mean: f64, error_variance: f64) -> Vec<f64> {
@@ -86,6 +91,7 @@ impl ARIMA {
         output
     }
 
+    /// Fits the ARIMA model to the provided data.
     pub fn fit(&mut self, data: &Vec<f64>, p: usize, d: usize, q: usize, method: ARIMAMethod) {
         if d > 0 {
             let diff_data = diff(data, d);
@@ -110,6 +116,7 @@ impl ARIMA {
         }
     }
 
+    /// Automatically fits the ARIMA model by selecting the order based on a criterion.
     pub fn autofit(&mut self, data: &Vec<f64>, d: usize, max_ar_order: usize, max_ma_order: usize, criterion: ARIMACriterion) {     
         let diff_data = diff(data, d);
         
