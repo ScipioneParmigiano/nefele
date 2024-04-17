@@ -2,7 +2,6 @@ use std::cmp;
 extern crate nalgebra as na;
 use na::{DVector, DMatrix};
 
-
 pub fn diffseries(x: &Vec<f64>, d: f64) -> Vec<f64> {
     if d == 0.{
         return x.to_owned()
@@ -122,6 +121,7 @@ pub fn acf(
     max_lag: Option<usize>,
     covariance: bool,
 ) -> Vec<f64> {
+    println!("{}", x.len());
     let max_lag = match max_lag {
         // if upper bound for max_lag is n-1
         Some(max_lag) => cmp::min(max_lag, x.len() - 1),
@@ -288,26 +288,3 @@ pub fn compute_bic(n: usize, residual_sum_of_squares: f64, p: usize) -> f64 {
     let bic = n as f64 * (residual_sum_of_squares / n as f64).ln() + k as f64 * (n as f64).ln();
     bic
 }
-
-pub fn inverse_diffseries(ydiff: &Vec<f64>, d: f64) -> Vec<f64> {
-    let n = ydiff.len();
-    let mut x = vec![0.0; n];
-
-    // Apply the inverse operation: cumulative summation
-    let mut sum = 0.0;
-    for i in 0..n {
-        let mut term = ydiff[i];
-        for j in 0..i {
-            let mut prod = 1.0;
-            for k in 0..=j {
-                prod *= d + k as f64;
-            }
-            term *= prod / (j as f64 + 1.0);
-        }
-        sum += term;
-        x[i] = sum;
-    }
-
-    x
-}
-

@@ -1,6 +1,7 @@
 use super::utils::{mean, diff, pacf, diffseries, residuals, closest_integer, compute_variance};
 use liblbfgs::lbfgs;
 use finitediff::FiniteDiff;
+use rand::prelude::*;
 
 /// FARIMA struct represents a fractional autoregressive integrated moving average model.
 #[derive(Debug, Clone)]
