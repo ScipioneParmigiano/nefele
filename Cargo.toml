@@ -1,6 +1,6 @@
 [package]
 name = "nefele"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 author = ["Pietro Zanotta", "<zanottapietro1@gmail.com>"]
 description = "FARIMA modelling"
