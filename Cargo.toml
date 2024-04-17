@@ -2,6 +2,14 @@
 name = "nefele"
 version = "0.1.0"
 edition = "2021"
+author = ["Pietro Zanotta", "<zanottapietro1@gmail.com>"]
+description = "FARIMA modelling"
+repository = "https://github.com/ScipioneParmigiano/damn-differential"
+license = "MIT" 
+keywords = ["time-series", "FARIMA", "scientific-computing"]
+readme = "README.md"
+
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,3 +22,15 @@ nalgebra = "0.32.3"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 tracing = "0.1.40"
+
+[profile.dev]
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"  
