@@ -11,9 +11,6 @@ pub struct FARIMA {
     pub sigma_squared: f64      // Variance of the model
 }
 
-/// FARIMAMethod represents different methods for fitting a FARIMA model.
-pub enum FARIMAMethod {}
-
 impl FARIMA {
     /// Creates a new FARIMA struct with default values.
     pub fn new() -> FARIMA {
