@@ -192,7 +192,65 @@ impl ARIMA {
         self.theta = coef[ar+1..].to_vec();
     }
 
-    fn fit_ml(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {}
+    fn fit_ml(&mut self, data: &Vec<f64>, ar: usize, ma: usize) {
+        // Initial guess for parameters
+        let initial_guess: Vec<f64> = vec![0.0; ar + ma + 1];
+
+        // Objective function for MLE estimation
+        let f = |params: &[f64]| -> f64 {
+            let phi = &params[1..ar + 1];
+            let theta = &params[ar + 1..];
+            let mut log_likelihood = 0.0;
+
+            for t in (ar + ma)..data.len() {
+                let mut prediction = params[0];
+                for i in 0..ar {
+                    prediction += phi[i] * data[t - i - 1];
+                }
+                for j in 0..ma {
+                    prediction += theta[j] * data[t - j - 1];
+                }
+                let residual = data[t] - prediction;
+                log_likelihood -= 0.5 * (residual * residual).ln();
+            }
+
+            // println!("LL: {:?}, {:?}, {}",phi, theta, -log_likelihood);
+            -log_likelihood // negative log likelihood
+        };
+
+        // Compute gradient using finite differences
+        let mut gradient = vec![0.0; ar + ma + 1];
+        let epsilon = 1e-6;
+        for i in 0..(ar + ma + 1) {
+            let mut params_plus = initial_guess.clone();
+            params_plus[i] += epsilon;
+            let fx_plus = f(&params_plus);
+
+            let mut params_minus = initial_guess.clone();
+            params_minus[i] -= epsilon;
+            let fx_minus = f(&params_minus);
+
+            gradient[i] = (fx_plus - fx_minus) / (2.0 * epsilon);
+        }
+
+        let mut optimized_params = initial_guess.clone();
+        
+        let evaluate = |x: &[f64], gx: &mut [f64]| {
+            let fx = f(x);
+            gx.copy_from_slice(&gradient);
+            Ok(fx)
+        };
+
+        let fmin = lbfgs().with_max_iterations(200);
+        if let Err(e) = fmin.minimize(&mut optimized_params, evaluate, |_prng| { false }) {
+            tracing::warn!("{}", e);
+        }
+
+        // Extract estimated parameters
+        self.phi = optimized_params[1..=ar].to_vec();
+        self.theta = optimized_params[ar + 1..].to_vec();
+    }
+    
 
     fn autofit_aic(&mut self, data: &Vec<f64>, max_ar_order: usize, max_ma_order: usize) {
         let mut aic: Vec<f64> = Vec::with_capacity((max_ar_order + 1) * (max_ma_order + 1));

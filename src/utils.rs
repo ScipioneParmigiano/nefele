@@ -1,6 +1,5 @@
 use std::cmp;
 extern crate nalgebra as na;
-use na::DVector;
 
 pub fn diffseries(x: &Vec<f64>, d: f64) -> Vec<f64> {
     if d == 0.{
