@@ -1,5 +1,26 @@
 use std::cmp;
 extern crate nalgebra as na;
+use unit_root::prelude::distrib::{AlphaLevel, Regression};
+use unit_root::prelude::nalgebra::DVector;
+use unit_root::prelude::*;
+
+/// Perform Augmented Dickey-Fuller test
+pub fn adf(y: Vec<f64>, lag: usize, regression: Regression) -> (f64, f64) {
+    // Convert y to DVector<f64>
+    let y_dvector = DVector::from_iterator(y.len(), y.iter().cloned());
+
+    // compute the test statistic
+    let report = tools::adf_test(&y_dvector, lag, regression).unwrap();
+
+    // critical values for the model with a constant but no trend:
+    let critical_value: f64 =
+        distrib::dickeyfuller::get_critical_value(regression, report.size, AlphaLevel::OnePercent)
+            .unwrap();
+
+    // comparison
+    let stat = report.test_statistic;
+    (stat, critical_value)
+}
 
 pub fn diffseries(x: &Vec<f64>, d: f64) -> Vec<f64> {
     if d == 0.{
